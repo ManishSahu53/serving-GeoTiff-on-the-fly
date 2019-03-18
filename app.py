@@ -62,7 +62,6 @@ def metadata():
 @app.route('/api/v1/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>', methods=['GET'])
 @app.route('/api/v1/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>.<tileformat>', methods=['GET'])
 def tile(tile_z, tile_x, tile_y, tileformat='png'):
-    print('Hit')
     """Handle tile requests."""
     if tileformat == 'jpg':
         tileformat = 'jpeg'
@@ -72,61 +71,13 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
 
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
-    if not url:
-        raise TilerError("Missing 'url' parameter")
-    indexes = request.args.get('indexes')
-    if indexes:
-        indexes = tuple(int(s) for s in re.findall(r'\d+', indexes))
-
-    tilesize = request.args.get('tile', 256)
-    tilesize = int(tilesize) if isinstance(tilesize, str) else tilesize
-
-    nodata = request.args.get('nodata')
-
-    if nodata is not None:
-        nodata = int(nodata)
-
-    tile, mask = main.tile(url,
-                           tile_x,
-                           tile_y,
-                           tile_z,
-                           indexes=indexes,
-                           tilesize=tilesize,
-                           nodata=nodata,
-                           resampling_method="cubic_spline")
-
-    if len(tile.shape) == 2:
-        tile = np.expand_dims(tile, axis=0)
-    if tile.shape[0] != 3 and tile.shape[0] != 4:
-        print('Shape of tile : ', tile.shape[0])
-        raise TilerError("Tiles of 3/4 bands are only supported")
-
-    print('max : %d' % (np.max(tile[0, :, :])))
-
-    # Converting it to Unsigned integer 8 bit if not.
-    tile = np.uint8(tile)
-
-    # Convering from array to image bytes type
-    img = array_to_image(tile)
-
-    return Response(img, mimetype='image/%s' % (tileformat))
-
-
-@app.route('/api/v1/elevation/<int:tile_z>/<int:tile_x>/<int:tile_y>', methods=['GET'])
-@app.route('/api/v1/elevation/<int:tile_z>/<int:tile_x>/<int:tile_y>.<tileformat>', methods=['GET'])
-def elevation(tile_z, tile_x, tile_y, tileformat='png'):
-    """Handle processing of Elevation dataset requests."""
-    if tileformat == 'jpg':
-        tileformat = 'jpeg'
-
-    url = request.args.get('url', default='', type=str)
-    url = requote_uri(url)
     colormap = request.args.get('cmap', default='majama', type=str)
     min_value = request.args.get('min', type=float)
     max_value = request.args.get('max', type=float)
     nodata = request.args.get('nodata', default=-9999, type=float)
     tilesize = request.args.get('tile', 256)
     indexes = request.args.get('indexes')
+    numband = request.args.get('numband')
 
     if not url:
         raise TilerError("Missing 'url' parameter")
@@ -134,7 +85,7 @@ def elevation(tile_z, tile_x, tile_y, tileformat='png'):
     if indexes:
         indexes = tuple(int(s) for s in re.findall(r'\d+', indexes))
 
-    # mapzen_elevation_rgb
+    tilesize = request.args.get('tile', 256)
     tilesize = int(tilesize) if isinstance(tilesize, str) else tilesize
 
     if nodata is not None:
@@ -146,21 +97,38 @@ def elevation(tile_z, tile_x, tile_y, tileformat='png'):
                            tile_z,
                            indexes=indexes,
                            tilesize=tilesize,
-                           nodata=nodata)
+                           nodata=None,
+                           resampling_method="cubic_spline")
 
     if len(tile.shape) == 2:
         tile = np.expand_dims(tile, axis=0)
+    
+    if not numband:
+        numband = len(tile[:,0,0])
+    
+    # Considering orthomosaics datasets
+    if numband == 3 or numband ==4:
+        print('max : %d' % (np.max(tile[0, :, :])))
 
-    # color_arr = mapzen_elevation_rgb(tile[0,:,:])
+        # Converting it to Unsigned integer 8 bit if not.
+        tile = np.uint8(tile)
 
-    # Coloring 1 dimension array to 3 dimension color array
-    color_arr = ele_func.jet_colormap(
-        tile[0, :, :], arr_min=min_value, arr_max=max_value, colormap=colormap, mask=mask, nodata=nodata)
+        # Convering from array to image bytes type
+        img = array_to_image(tile)
+    
+    # Considering single band dataset
+    elif numband==1:
+        color_arr = ele_func.jet_colormap(tile[0, :, :], 
+                                          arr_min=min_value, 
+                                          arr_max=max_value, 
+                                          colormap=colormap, 
+                                          mask=mask, 
+                                          nodata=nodata)
 
-    # Remapping [row, col, dim] to [dim, row, col] format
-    color_arr = ele_func.remap_array(arr=color_arr)
-    img = array_to_image(arr=color_arr)
-
+        # Remapping [row, col, dim] to [dim, row, col] format
+        color_arr = ele_func.remap_array(arr=color_arr)
+        img = array_to_image(arr=color_arr)
+    
     return Response(img, mimetype='image/%s' % (tileformat))
 
 
