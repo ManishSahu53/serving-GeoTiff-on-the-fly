@@ -34,12 +34,12 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 cors = CORS(app, resorces={r'/d/*': {"origins": '*'}})
 
 
-@app.route('/')
+@app.route('/api/v1/')
 def hello():
     return "Welcome to, Indshine COG API!"
 
 
-@app.route('/bounds', methods=['GET'])
+@app.route('/api/v1/bounds', methods=['GET'])
 def bounds():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
@@ -49,7 +49,7 @@ def bounds():
     return (jsonify(info))
 
 
-@app.route('/metadata', methods=['GET'])
+@app.route('/api/v1/metadata', methods=['GET'])
 def metadata():
     """Handle metadata requests."""
     url = request.args.get('url', default='', type=str)
@@ -59,9 +59,10 @@ def metadata():
     return (jsonify(info))
 
 
-@app.route('/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>', methods=['GET'])
-@app.route('/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>.<tileformat>', methods=['GET'])
+@app.route('/api/v1/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>', methods=['GET'])
+@app.route('/api/v1/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>.<tileformat>', methods=['GET'])
 def tile(tile_z, tile_x, tile_y, tileformat='png'):
+    print('Hit')
     """Handle tile requests."""
     if tileformat == 'jpg':
         tileformat = 'jpeg'
@@ -111,8 +112,8 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
     return Response(img, mimetype='image/%s' % (tileformat))
 
 
-@app.route('/elevation/<int:tile_z>/<int:tile_x>/<int:tile_y>', methods=['GET'])
-@app.route('/elevation/<int:tile_z>/<int:tile_x>/<int:tile_y>.<tileformat>', methods=['GET'])
+@app.route('/api/v1/elevation/<int:tile_z>/<int:tile_x>/<int:tile_y>', methods=['GET'])
+@app.route('/api/v1/elevation/<int:tile_z>/<int:tile_x>/<int:tile_y>.<tileformat>', methods=['GET'])
 def elevation(tile_z, tile_x, tile_y, tileformat='png'):
     """Handle processing of Elevation dataset requests."""
     if tileformat == 'jpg':
@@ -163,7 +164,7 @@ def elevation(tile_z, tile_x, tile_y, tileformat='png'):
     return Response(img, mimetype='image/%s' % (tileformat))
 
 
-@app.route('/value', methods=['GET'])
+@app.route('/api/v1/value', methods=['GET'])
 def value():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
@@ -175,7 +176,7 @@ def value():
     return (jsonify(info))
 
 
-@app.route('/favicon.ico', methods=['GET'])
+@app.route('/api/v1/favicon.ico', methods=['GET'])
 def favicon():
     """Favicon."""
     output = {}
