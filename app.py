@@ -77,7 +77,7 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
     nodata = request.args.get('nodata', default=-9999, type=float)
     tilesize = request.args.get('tile', 256)
     indexes = request.args.get('indexes')
-    numband = request.args.get('numband')
+    numband = request.args.get('numband', type=int)
 
     if not url:
         raise TilerError("Missing 'url' parameter")
