@@ -64,7 +64,7 @@ def metadata():
 def tile(tile_z, tile_x, tile_y, tileformat='png'):
 
     # Rendering only if zoom level is greater than 9
-    if int(tile_z) > 9:
+    if int(tile_z) < 9:
         return Response(None)
 
     """Handle tile requests."""
