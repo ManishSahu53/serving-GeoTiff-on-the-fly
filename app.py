@@ -31,10 +31,10 @@ class TilerError(Exception):
 app = Flask(__name__)
 Compress(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
-cors = CORS(app, resorces={r'/d/*': {"origins": '*'}})
+cors = CORS(app)
 
 
-@app.route('/api/v1/')
+@app.route('/')
 def hello():
     return "Welcome to, Indshine COG API!"
 
@@ -81,33 +81,27 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
 
     if not url:
         raise TilerError("Missing 'url' parameter")
-
     if indexes:
         indexes = tuple(int(s) for s in re.findall(r'\d+', indexes))
 
-    tilesize = request.args.get('tile', 256)
     tilesize = int(tilesize) if isinstance(tilesize, str) else tilesize
 
     if nodata is not None:
         nodata = int(nodata)
 
-    tile, mask = main.tile(url,
-                           tile_x,
-                           tile_y,
-                           tile_z,
-                           indexes=indexes,
-                           tilesize=tilesize,
-                           nodata=None,
-                           resampling_method="cubic_spline")
+    if numband is not None:
+        numband = int(numband)
 
-    if len(tile.shape) == 2:
-        tile = np.expand_dims(tile, axis=0)
-    
-    if not numband:
-        numband = len(tile[:,0,0])
-    
-    # Considering orthomosaics datasets
     if numband == 3 or numband ==4:
+        tile, mask = main.tile(url,
+                            tile_x,
+                            tile_y,
+                            tile_z,
+                            indexes=indexes,
+                            tilesize=tilesize,
+                            nodata=None,
+                            resampling_method="cubic_spline")
+
         print('max : %d' % (np.max(tile[0, :, :])))
 
         # Converting it to Unsigned integer 8 bit if not.
@@ -115,24 +109,29 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
 
         # Convering from array to image bytes type
         img = array_to_image(tile)
-    
-    # Considering single band dataset
-    elif numband==1:
-        color_arr = ele_func.jet_colormap(tile[0, :, :], 
-                                          arr_min=min_value, 
-                                          arr_max=max_value, 
-                                          colormap=colormap, 
-                                          mask=mask, 
-                                          nodata=nodata)
+
+    elif numband ==1:
+        tile, mask = main.tile(url,
+                                tile_x,
+                                tile_y,
+                                tile_z,
+                                indexes=indexes,
+                                tilesize=tilesize,
+                                nodata=nodata,
+                                resampling_method="cubic_spline")
+        
+        # Coloring 1 dimension array to 3 dimension color array
+        color_arr = ele_func.jet_colormap(
+            tile[0, :, :], arr_min=min_value, arr_max=max_value, colormap=colormap, mask=mask, nodata=nodata)
 
         # Remapping [row, col, dim] to [dim, row, col] format
         color_arr = ele_func.remap_array(arr=color_arr)
         img = array_to_image(arr=color_arr)
-    
+
     return Response(img, mimetype='image/%s' % (tileformat))
 
 
-@app.route('/api/v1/value', methods=['GET'])
+@app.route('/api/v1//value', methods=['GET'])
 def value():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
@@ -155,7 +154,7 @@ def favicon():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, threaded=True)
 
 
 """
