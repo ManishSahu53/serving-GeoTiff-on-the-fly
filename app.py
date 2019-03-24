@@ -44,10 +44,17 @@ def bounds():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
     Expires = request.args.get('Expires', type=str)
-    x-amz-security-token = request.args.get('x-amz-security-token', type=str)
+    security_token = request.args.get('x-amz-security-token', type=str)
     Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
 
+    if Expires is not None:
+        url = url + '&Expires=' + Expires
+    if security_token is not None:
+        url = url + '&x-amz-security-token=' + security_token 
+    if Signature is not None:
+        url = url + '&Signature=' + Signature
+    
     # address = query_args['url']
     info = main.bounds(url)
     return (jsonify(info))
@@ -58,15 +65,15 @@ def metadata():
     """Handle metadata requests."""
     url = request.args.get('url', default='', type=str)
     Expires = request.args.get('Expires', type=str)
-    x-amz-security-token = request.args.get('x-amz-security-token', type=str)
+    security_token = request.args.get('x-amz-security-token', type=str)
     Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
 
-    if Expires:
+    if Expires is not None:
         url = url + '&Expires=' + Expires
-    if security-token:
-        url = url + '&x-amz-security-token=' + security-token 
-    if Signature:
+    if security_token is not None:
+        url = url + '&x-amz-security-token=' + security_token 
+    if Signature is not None:
         url = url + '&Signature=' + Signature
     
     # address = query_args['url']
@@ -91,15 +98,15 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
 
     url = request.args.get('url', default='', type=str)
     Expires = request.args.get('Expires', type=str)
-    x-amz-security-token = request.args.get('x-amz-security-token', type=str)
+    security_token = request.args.get('x-amz-security-token', type=str)
     Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
 
-    if Expires:
+    if Expires is not None:
         url = url + '&Expires=' + Expires
-    if security-token:
-        url = url + '&x-amz-security-token=' + security-token 
-    if Signature:
+    if security_token is not None:
+        url = url + '&x-amz-security-token=' + security_token 
+    if Signature is not None:
         url = url + '&Signature=' + Signature
     
     colormap = request.args.get('cmap', default='majama', type=str)
@@ -168,15 +175,15 @@ def value():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
     Expires = request.args.get('Expires', type=str)
-    security-token = request.args.get('x-amz-security-token', type=str)
+    security_token = request.args.get('x-amz-security-token', type=str)
     Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
     
-    if Expires:
+    if Expires is not None:
         url = url + '&Expires=' + Expires
-    if security-token:
-        url = url + '&x-amz-security-token=' + security-token 
-    if Signature:
+    if security_token is not None:
+        url = url + '&x-amz-security-token=' + security_token 
+    if Signature is not None:
         url = url + '&Signature=' + Signature
 
     x = request.args.get('x', type=float)
