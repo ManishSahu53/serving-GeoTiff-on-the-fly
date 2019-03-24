@@ -50,10 +50,12 @@ def bounds():
 
     if Expires is not None:
         url = url + '&Expires=' + Expires
-    if security_token is not None:
-        url = url + '&x-amz-security-token=' + security_token 
+
     if Signature is not None:
         url = url + '&Signature=' + Signature
+
+    if security_token is not None:
+        url = url + '&x-amz-security-token=' + security_token 
     
     # address = query_args['url']
     info = main.bounds(url)
@@ -71,10 +73,12 @@ def metadata():
 
     if Expires is not None:
         url = url + '&Expires=' + Expires
-    if security_token is not None:
-        url = url + '&x-amz-security-token=' + security_token 
+
     if Signature is not None:
         url = url + '&Signature=' + Signature
+
+    if security_token is not None:
+        url = url + '&x-amz-security-token=' + security_token 
     
     # address = query_args['url']
     info = main.metadata(url)
@@ -104,10 +108,12 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
 
     if Expires is not None:
         url = url + '&Expires=' + Expires
-    if security_token is not None:
-        url = url + '&x-amz-security-token=' + security_token 
+
     if Signature is not None:
         url = url + '&Signature=' + Signature
+
+    if security_token is not None:
+        url = url + '&x-amz-security-token=' + security_token 
     
     colormap = request.args.get('cmap', default='majama', type=str)
     min_value = request.args.get('min', type=float)
@@ -181,10 +187,12 @@ def value():
     
     if Expires is not None:
         url = url + '&Expires=' + Expires
-    if security_token is not None:
-        url = url + '&x-amz-security-token=' + security_token 
+
     if Signature is not None:
         url = url + '&Signature=' + Signature
+
+    if security_token is not None:
+        url = url + '&x-amz-security-token=' + security_token 
 
     x = request.args.get('x', type=float)
     y = request.args.get('y', type=float)
