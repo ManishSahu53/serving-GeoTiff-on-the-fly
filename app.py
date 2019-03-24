@@ -83,6 +83,8 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
     tilesize = request.args.get('tile', 256)
     indexes = request.args.get('indexes')
     numband = request.args.get('numband', type=int)
+    scale = request.args.get('scale', default=1, type=int)
+    scale = int(scale)
 
     if not url:
         raise TilerError("Missing 'url' parameter")
@@ -103,11 +105,10 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
                             tile_y,
                             tile_z,
                             indexes=indexes,
-                            tilesize=tilesize,
+                            tilesize=tilesize*scale,
                             nodata=None,
                             resampling_method="cubic_spline")
 
-        print('max : %d' % (np.max(tile[0, :, :])))
 
         # Converting it to Unsigned integer 8 bit if not.
         tile = np.uint8(tile)
@@ -121,7 +122,7 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
                                 tile_y,
                                 tile_z,
                                 indexes=indexes,
-                                tilesize=tilesize,
+                                tilesize=tilesize*scale,
                                 nodata=nodata,
                                 resampling_method="cubic_spline")
         
