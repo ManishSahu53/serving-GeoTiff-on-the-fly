@@ -43,7 +43,11 @@ def hello():
 def bounds():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
+    Expires = request.args.get('Expires', type=str)
+    x-amz-security-token = request.args.get('x-amz-security-token', type=str)
+    Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
+
     # address = query_args['url']
     info = main.bounds(url)
     return (jsonify(info))
@@ -53,7 +57,18 @@ def bounds():
 def metadata():
     """Handle metadata requests."""
     url = request.args.get('url', default='', type=str)
+    Expires = request.args.get('Expires', type=str)
+    x-amz-security-token = request.args.get('x-amz-security-token', type=str)
+    Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
+
+    if Expires:
+        url = url + '&Expires=' + Expires
+    if security-token:
+        url = url + '&x-amz-security-token=' + security-token 
+    if Signature:
+        url = url + '&Signature=' + Signature
+    
     # address = query_args['url']
     info = main.metadata(url)
     return (jsonify(info))
@@ -75,7 +90,18 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
     # query_args = query_args if isinstance(query_args, dict) else {}
 
     url = request.args.get('url', default='', type=str)
+    Expires = request.args.get('Expires', type=str)
+    x-amz-security-token = request.args.get('x-amz-security-token', type=str)
+    Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
+
+    if Expires:
+        url = url + '&Expires=' + Expires
+    if security-token:
+        url = url + '&x-amz-security-token=' + security-token 
+    if Signature:
+        url = url + '&Signature=' + Signature
+    
     colormap = request.args.get('cmap', default='majama', type=str)
     min_value = request.args.get('min', type=float)
     max_value = request.args.get('max', type=float)
@@ -141,9 +167,20 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
 def value():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
+    Expires = request.args.get('Expires', type=str)
+    security-token = request.args.get('x-amz-security-token', type=str)
+    Signature = request.args.get('Signature', type=str)
+    url = requote_uri(url)
+    
+    if Expires:
+        url = url + '&Expires=' + Expires
+    if security-token:
+        url = url + '&x-amz-security-token=' + security-token 
+    if Signature:
+        url = url + '&Signature=' + Signature
+
     x = request.args.get('x', type=float)
     y = request.args.get('y', type=float)
-    url = requote_uri(url)
     # address = query_args['url']
     info = get_value.get_value(address=url, coord_x=x, coord_y=y)
     return (jsonify(info))
