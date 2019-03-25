@@ -20,7 +20,11 @@ from rio_tiler.utils import (array_to_image,
 from src import cmap
 from src import elevation as ele_func
 from src import value as get_value
+from src import response
+from src.gzipping import gzipped
+
 import time
+import gzip
 # from lambda_proxy.proxy import API
 
 
@@ -29,9 +33,21 @@ class TilerError(Exception):
 
 
 app = Flask(__name__)
-Compress(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 cors = CORS(app)
+
+app.config['COMPRESS_MIMETYPES'] = ['text/html', 'text/css', 'text/xml',
+                                    'application/json',
+                                    'application/javascript',
+                                    'image/png',
+                                    'image/PNG',
+                                    'image/jpg',
+                                    'imgae/jpeg',
+                                    'image/JPG',
+                                    'image/JPEG']
+app.config['COMPRESS_LEVEL'] = 9
+app.config['COMPRESS_MIN_SIZE'] = 0
+Compress(app)
 
 
 @app.route('/')
@@ -122,7 +138,8 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
         tile = np.uint8(tile)
 
         # Convering from array to image bytes type
-        img = array_to_image(tile)
+        # img = array_to_image(tile)
+        img = response.array_to_img(arr=tile, tilesize=tilesize, scale=scale, tileformat=tileformat)
 
     elif numband ==1:
         st_time = time.time()

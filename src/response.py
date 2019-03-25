@@ -26,7 +26,7 @@ def reshape_as_image(arr):
     return im
 
 
-def array_to_img(arr, mask=None, color_map=None):
+def array_to_img(arr, mask=None, color_map=None, tileformat='png', tilesize=256, scale=1):
     """Convert an array to an base64 encoded img
 
     Attributes
@@ -43,27 +43,47 @@ def array_to_img(arr, mask=None, color_map=None):
     img : object
         Pillow image
     """
-    if arr.dtype != np.uint8:
-        arr = arr.astype(np.uint8)
+    arr = reshape_as_image(arr)
 
-    if len(arr.shape) >= 3:
-        arr = reshape_as_image(arr)
-        arr = arr.squeeze()
+    if arr.shape[2] == 4:
+        alpha = arr[:,:,3]
 
-    if len(arr.shape) != 2 and color_map:
-        raise InvalidFormat('Cannot apply colormap on a multiband image')
+        if int(np.min(alpha)) == 255:
+            img = Image.fromarray(arr[:,:,:3], mode='RGB')
+            params = {'quality': 70,
+                      'optimize': True,
+                      'compress_level':9}
+            
+            # Resize back to default tilesize
+            img = img.resize((tilesize,tilesize), Image.ANTIALIAS)
 
-    mode = 'L' if len(arr.shape) == 2 else 'RGB'
+            sio = BytesIO()
+            img.save(sio, 'JPEG', **params)
+            sio.seek(0)
+        else:
+            img = Image.fromarray(arr, mode='RGBA')
+            params = {'compress_level': 9}
+            # Resize back to default tilesize
+            img = img.resize((tilesize,tilesize), Image.ANTIALIAS)
 
-    img = Image.fromarray(arr, mode=mode)
-    if color_map:
-        img.putpalette(color_map)
+            sio = BytesIO()
+            img.save(sio, tileformat.upper(), **params)
+            sio.seek(0)
 
-    if mask is not None:
-        mask_img = Image.fromarray(mask.astype(np.uint8))
-        img.putalpha(mask_img)
+    elif arr.shape[2] == 3:
+        img = Image.fromarray(arr, mode='RGB')
+        params = {'quality': 70,
+                  'optimize': True,
+                  'compress_level':9}
 
-    return img
+        # Resize back to default tilesize
+        img = img.resize((tilesize,tilesize), Image.ANTIALIAS)
+
+        sio = BytesIO()
+        img.save(sio, 'JPEG', **params)
+        sio.seek(0)
+
+    return sio.getvalue()
 
 
 def b64_encode_img(img, tileformat):
