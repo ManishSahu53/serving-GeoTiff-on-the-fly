@@ -43,6 +43,8 @@ def array_to_img(arr, mask=None, color_map=None, tileformat='png', tilesize=256,
     img : object
         Pillow image
     """
+    quality = 90
+    compress_level = 9
     arr = reshape_as_image(arr)
 
     if arr.shape[2] == 4:
@@ -50,9 +52,9 @@ def array_to_img(arr, mask=None, color_map=None, tileformat='png', tilesize=256,
 
         if int(np.min(alpha)) == 255:
             img = Image.fromarray(arr[:,:,:3], mode='RGB')
-            params = {'quality': 70,
+            params = {'quality': quality,
                       'optimize': True,
-                      'compress_level':9}
+                      'compress_level':compress_level}
             
             # Resize back to default tilesize
             img = img.resize((tilesize,tilesize), Image.ANTIALIAS)
@@ -60,6 +62,7 @@ def array_to_img(arr, mask=None, color_map=None, tileformat='png', tilesize=256,
             sio = BytesIO()
             img.save(sio, 'JPEG', **params)
             sio.seek(0)
+
         else:
             img = Image.fromarray(arr, mode='RGBA')
             params = {'compress_level': 9}
@@ -70,11 +73,11 @@ def array_to_img(arr, mask=None, color_map=None, tileformat='png', tilesize=256,
             img.save(sio, tileformat.upper(), **params)
             sio.seek(0)
 
-    elif arr.shape[2] == 3:
-        img = Image.fromarray(arr, mode='RGB')
-        params = {'quality': 70,
+    else:
+        img = Image.fromarray(arr[:,:,:3], mode='RGB')
+        params = {'quality': quality,
                   'optimize': True,
-                  'compress_level':9}
+                  'compress_level':compress_level}
 
         # Resize back to default tilesize
         img = img.resize((tilesize,tilesize), Image.ANTIALIAS)
