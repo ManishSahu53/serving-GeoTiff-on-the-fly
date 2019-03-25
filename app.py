@@ -21,7 +21,6 @@ from src import cmap
 from src import elevation as ele_func
 from src import value as get_value
 from src import response
-from src.gzipping import gzipped
 
 import time
 import gzip
@@ -161,7 +160,8 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
 
         # Remapping [row, col, dim] to [dim, row, col] format
         color_arr = ele_func.remap_array(arr=color_arr)
-        img = array_to_image(arr=color_arr)
+        # img = array_to_image(arr=color_arr)
+        img = response.array_to_img(arr=color_arr, tilesize=tilesize, scale=scale, tileformat=tileformat)
 
     return Response(img, mimetype='image/%s' % (tileformat))
 

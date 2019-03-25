@@ -6,3 +6,4 @@ flask_compress
 flask_cors
 gunicorn
 pyproj
+pillow

@@ -54,7 +54,8 @@ RUN pip3 install flask && \
     pip3 install flask_cors &&\
     pip3 install gunicorn &&\
     pip3 install gevent &&\
-    pip3 install pyproj
+    pip3 install pyproj &&\
+    pip3 install pillow
 
 EXPOSE 8000
 
