@@ -43,19 +43,7 @@ def hello():
 def bounds():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
-    Expires = request.args.get('Expires', type=str)
-    security_token = request.args.get('x-amz-security-token', type=str)
-    Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
-
-    if Expires is not None:
-        url = url + '&Expires=' + Expires
-
-    if Signature is not None:
-        url = url + '&Signature=' + Signature
-
-    if security_token is not None:
-        url = url + '&x-amz-security-token=' + security_token 
     
     # address = query_args['url']
     info = main.bounds(url)
@@ -66,19 +54,8 @@ def bounds():
 def metadata():
     """Handle metadata requests."""
     url = request.args.get('url', default='', type=str)
-    Expires = request.args.get('Expires', type=str)
-    security_token = request.args.get('x-amz-security-token', type=str)
-    Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
 
-    if Expires is not None:
-        url = url + '&Expires=' + Expires
-
-    if Signature is not None:
-        url = url + '&Signature=' + Signature
-
-    if security_token is not None:
-        url = url + '&x-amz-security-token=' + security_token 
     
     # address = query_args['url']
     info = main.metadata(url)
@@ -101,19 +78,8 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
     # query_args = query_args if isinstance(query_args, dict) else {}
 
     url = request.args.get('url', default='', type=str)
-    Expires = request.args.get('Expires', type=str)
-    security_token = request.args.get('x-amz-security-token', type=str)
-    Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
 
-    if Expires is not None:
-        url = url + '&Expires=' + Expires
-
-    if Signature is not None:
-        url = url + '&Signature=' + Signature
-
-    if security_token is not None:
-        url = url + '&x-amz-security-token=' + security_token 
     
     colormap = request.args.get('cmap', default='majama', type=str)
     min_value = request.args.get('min', type=float)
@@ -180,19 +146,7 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
 def value():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
-    Expires = request.args.get('Expires', type=str)
-    security_token = request.args.get('x-amz-security-token', type=str)
-    Signature = request.args.get('Signature', type=str)
     url = requote_uri(url)
-    
-    if Expires is not None:
-        url = url + '&Expires=' + Expires
-
-    if Signature is not None:
-        url = url + '&Signature=' + Signature
-
-    if security_token is not None:
-        url = url + '&x-amz-security-token=' + security_token 
 
     x = request.args.get('x', type=float)
     y = request.args.get('y', type=float)
