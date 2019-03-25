@@ -20,7 +20,7 @@ from rio_tiler.utils import (array_to_image,
 from src import cmap
 from src import elevation as ele_func
 from src import value as get_value
-
+import time
 # from lambda_proxy.proxy import API
 
 
@@ -105,6 +105,7 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
         numband = int(numband)
 
     if numband == 3 or numband ==4:
+        st_time = time.time()
         tile, mask = main.tile(url,
                             tile_x,
                             tile_y,
@@ -114,6 +115,8 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
                             nodata=None,
                             resampling_method="cubic_spline")
 
+        end_time = time.time()
+        print('Reading time: ', end_time-st_time)
 
         # Converting it to Unsigned integer 8 bit if not.
         tile = np.uint8(tile)
@@ -122,6 +125,7 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
         img = array_to_image(tile)
 
     elif numband ==1:
+        st_time = time.time()
         tile, mask = main.tile(url,
                                 tile_x,
                                 tile_y,
@@ -131,6 +135,9 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
                                 nodata=nodata,
                                 resampling_method="cubic_spline")
         
+        end_time = time.time()
+        print('Reading time: ', end_time-st_time)
+
         # Coloring 1 dimension array to 3 dimension color array
         color_arr = ele_func.jet_colormap(
             tile[0, :, :], arr_min=min_value, arr_max=max_value, colormap=colormap, mask=mask, nodata=nodata)
@@ -142,7 +149,7 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
     return Response(img, mimetype='image/%s' % (tileformat))
 
 
-@app.route('/api/v1//value', methods=['GET'])
+@app.route('/api/v1/value', methods=['GET'])
 def value():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
