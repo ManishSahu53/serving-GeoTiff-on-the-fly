@@ -1,3 +1,2 @@
-v0.2.0 - RGB and elevation geotiff supported
-v0.3.0 - 
-v0.4.0 - Added value tool API
+v0.1.0 - Added Tiles support
+v0.2.0 - Added Compression to output
