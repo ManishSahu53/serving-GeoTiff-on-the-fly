@@ -135,7 +135,7 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
                                 nodata=nodata,
                                 resampling_method="cubic_spline")
         
-        end_time = time.time()
+    end_time = time.time()
         print('Reading time: ', end_time-st_time)
 
         # Coloring 1 dimension array to 3 dimension color array
