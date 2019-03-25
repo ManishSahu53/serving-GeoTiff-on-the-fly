@@ -61,4 +61,4 @@ EXPOSE 8000
 # ENTRYPOINT ["python3"]
 # CMD ["app.py" ]    
 # ENTRYPOINT ["gunicorn", "-k", "gevent", "-b", "0.0.0.0", "app:app"]
-CMD ["gunicorn", "-k", "gevent", "-w", "4", "-b", "0.0.0.0:3000", "app:app"]
+CMD ["gunicorn", "-k", "gevent", "-w", "10", "-b", "0.0.0.0:3000", "app:app"]
