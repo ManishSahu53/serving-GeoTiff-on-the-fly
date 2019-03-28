@@ -223,7 +223,7 @@ def profile():
         for j in range(len(temp_x)):
             coord_x.append(temp_x[j])
             coord_y.append(temp_y[j])
-    
+
     print('Generated %d number of points' % (len(coord_x)))
     # Initializing dataset
     data = []

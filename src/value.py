@@ -41,10 +41,8 @@ def get_value(address, coord_x, coord_y):
             band_json = {}
             try:
                 lon, lat = (coord_x[i], coord_y[i])
-                print('Here', lon, lat)
             except:
                 lon, lat = (coord_x, coord_y)
-                print('Here', lon, lat)
             east, north = pyproj.transform(lonlat, utm, float(lon), float(lat))
 
             # What is the corresponding row and column in our image?
