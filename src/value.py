@@ -3,17 +3,18 @@ import pyproj
 import numpy as np
 from rio_tiler.errors import InvalidFormat
 
+
 # Extracting values from the rasters
 def get_value(address, coord_x, coord_y):
     """
-    Address will be /vsicurl/https:xxx.tif
-    coord_x will be array of longitude 
-    coord_y will be array of latitude
+    Address  = /vsicurl/https:xxx.tif
+    coord_x  = array of longitude 
+    coord_y  = array of latitude
     """
-    
+
     with rasterio.open(address) as src:
         # Use pyproj to convert point coordinates
-        utm = pyproj.Proj(src.crs) # Pass CRS of image from rasterio
+        utm = pyproj.Proj(src.crs)  # Pass CRS of image from rasterio
         lonlat = pyproj.Proj(init='epsg:4326')
 
         # If different length of arrays
@@ -32,25 +33,27 @@ def get_value(address, coord_x, coord_y):
             num_bands = src.count
             value = np.zeros((len_data, num_bands), dtype=float)
             value_json = {}
-        
+
         # Setting loop for array of dataset
         for i in range(len_data):
-            
+
             # Initializing bands json
             band_json = {}
             try:
-                lon,lat = (coord_x[i], coord_y[i])
+                lon, lat = (coord_x[i], coord_y[i])
+                print('Here', lon, lat)
             except:
-                lon,lat = (coord_x, coord_y)
-            
-            east,north = pyproj.transform(lonlat, utm, lon, lat)
+                lon, lat = (coord_x, coord_y)
+                print('Here', lon, lat)
+            east, north = pyproj.transform(lonlat, utm, float(lon), float(lat))
 
             # What is the corresponding row and column in our image?
             # spatial --> image coordinates
-            row, col = src.index(east, north) 
+            row, col = src.index(east, north)
             for j in range(num_bands):
-                value[i,j] = src.read(j+1, window=rasterio.windows.Window(col,row, 1, 1))
-                band_json['b%s'%(j)] = round(float(value[i,j]),3)
-            value_json['%s'%(i)] = band_json
-    
+                value[i, j] = src.read(
+                    j+1, window=rasterio.windows.Window(col, row, 1, 1))
+                band_json['b%s' % (j)] = round(float(value[i, j]), 3)
+            value_json['%s' % (i)] = band_json
+
     return value_json

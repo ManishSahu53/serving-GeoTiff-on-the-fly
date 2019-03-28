@@ -21,6 +21,7 @@ from src import cmap
 from src import elevation as ele_func
 from src import value as get_value
 from src import response
+from src import profile as get_profile
 
 import time
 import gzip
@@ -49,34 +50,37 @@ app.config['COMPRESS_MIN_SIZE'] = 0
 Compress(app)
 
 
+# Welcome page
 @app.route('/')
 def hello():
     return "Welcome to, Indshine COG API!"
 
 
+# Generates bounds of Raster data
 @app.route('/api/v1/bounds', methods=['GET'])
 def bounds():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
-    
+
     # address = query_args['url']
     info = main.bounds(url)
     return (jsonify(info))
 
 
+# Generates metadata of raster
 @app.route('/api/v1/metadata', methods=['GET'])
 def metadata():
     """Handle metadata requests."""
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
 
-    
     # address = query_args['url']
     info = main.metadata(url)
     return (jsonify(info))
 
 
+# Generate PNG/JPEG tiles of the given tile from raster
 @app.route('/api/v1/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>', methods=['GET'])
 @app.route('/api/v1/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>.<tileformat>', methods=['GET'])
 def tile(tile_z, tile_x, tile_y, tileformat='png'):
@@ -85,7 +89,7 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
     if int(tile_z) < 9:
         return Response(None)
 
-    """Handle tile requests."""
+    """Handle Tile requests."""
     if tileformat == 'jpg':
         tileformat = 'jpeg'
 
@@ -95,7 +99,6 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
 
-    
     colormap = request.args.get('cmap', default='majama', type=str)
     min_value = request.args.get('min', type=float)
     max_value = request.args.get('max', type=float)
@@ -119,16 +122,16 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
     if numband is not None:
         numband = int(numband)
 
-    if numband == 3 or numband ==4:
+    if numband == 3 or numband == 4:
         st_time = time.time()
         tile, mask = main.tile(url,
-                            tile_x,
-                            tile_y,
-                            tile_z,
-                            indexes=indexes,
-                            tilesize=tilesize*scale,
-                            nodata=None,
-                            resampling_method="cubic_spline")
+                               tile_x,
+                               tile_y,
+                               tile_z,
+                               indexes=indexes,
+                               tilesize=tilesize*scale,
+                               nodata=None,
+                               resampling_method="cubic_spline")
 
         end_time = time.time()
         print('Reading time: ', end_time-st_time)
@@ -138,19 +141,20 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
 
         # Convering from array to image bytes type
         # img = array_to_image(tile)
-        img = response.array_to_img(arr=tile, tilesize=tilesize, scale=scale, tileformat=tileformat)
+        img = response.array_to_img(
+            arr=tile, tilesize=tilesize, scale=scale, tileformat=tileformat)
 
-    elif numband ==1:
+    elif numband == 1:
         st_time = time.time()
         tile, mask = main.tile(url,
-                                tile_x,
-                                tile_y,
-                                tile_z,
-                                indexes=indexes,
-                                tilesize=tilesize*scale,
-                                nodata=nodata,
-                                resampling_method="cubic_spline")
-        
+                               tile_x,
+                               tile_y,
+                               tile_z,
+                               indexes=indexes,
+                               tilesize=tilesize*scale,
+                               nodata=nodata,
+                               resampling_method="cubic_spline")
+
         end_time = time.time()
         print('Reading time: ', end_time-st_time)
 
@@ -161,14 +165,16 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
         # Remapping [row, col, dim] to [dim, row, col] format
         color_arr = ele_func.remap_array(arr=color_arr)
         # img = array_to_image(arr=color_arr)
-        img = response.array_to_img(arr=color_arr, tilesize=tilesize, scale=scale, tileformat=tileformat)
+        img = response.array_to_img(
+            arr=color_arr, tilesize=tilesize, scale=scale, tileformat=tileformat)
 
     return Response(img, mimetype='image/%s' % (tileformat))
 
 
+# Gives data value from raster
 @app.route('/api/v1/value', methods=['GET'])
 def value():
-    """Handle bounds requests."""
+    """Handle Value requests."""
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
 
@@ -176,6 +182,53 @@ def value():
     y = request.args.get('y', type=float)
     # address = query_args['url']
     info = get_value.get_value(address=url, coord_x=x, coord_y=y)
+    return (jsonify(info))
+
+
+# Generates elevation/data profile from raster
+@app.route('/api/v1/profile', methods=['GET'])
+def profile():
+    """Handle Elevation profile requests."""
+    url = request.args.get('url', default='', type=str)
+    url = requote_uri(url)
+
+    # Gives an list of string
+    x = request.args.get('x')
+    y = request.args.get('y')
+
+    x = np.array(x.split(','), dtype=float)
+    y = np.array(y.split(','), dtype=float)
+    
+    print('data:', x)
+    print('length:', len(x))
+
+    coord_x = []
+    coord_y = []
+
+    # Checking length of x and y
+    if len(x) != len(y):
+        return Response('Error: Length of X and Y parameters are not equal')
+
+    elif len(x) < 2:
+        return Response('Error: Length of parameters should be greater than 1')
+
+    for i in range(len(x)-1):
+        print('Generating line from points')
+        temp_x, temp_y = get_profile.get_point2line(
+            x[i], y[i], x[i+1], y[i+1], step=0.14)
+
+        if temp_x is None or temp_y is None:
+            return ('Error: Distance between points should be less than 10KM')
+
+        for j in range(len(temp_x)):
+            coord_x.append(temp_x[j])
+            coord_y.append(temp_y[j])
+    
+    print('Generated %d number of points' % (len(coord_x)))
+    # Initializing dataset
+    data = []
+    info = get_value.get_value(
+        address=url, coord_x=coord_x, coord_y=coord_y)
     return (jsonify(info))
 
 

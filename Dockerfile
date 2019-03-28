@@ -55,7 +55,8 @@ RUN pip3 install flask && \
     pip3 install gunicorn &&\
     pip3 install gevent &&\
     pip3 install pyproj &&\
-    pip3 install pillow
+    pip3 install pillow &&\
+    pip3 install utm
 
 EXPOSE 8000
 
