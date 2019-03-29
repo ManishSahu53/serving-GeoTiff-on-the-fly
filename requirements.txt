@@ -8,3 +8,4 @@ gunicorn
 pyproj
 pillow
 utm
+shapely

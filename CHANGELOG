@@ -1,2 +1,4 @@
 v0.1.0 - Added Tiles support
 v0.2.0 - Added Compression to output
+v0.3.0 - Added value API
+v0.4.0 - Added elevation profile API

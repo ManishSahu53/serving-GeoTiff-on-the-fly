@@ -3,6 +3,10 @@ import math
 import utm
 
 
+class TilerError(Exception):
+    """Base exception class."""
+
+
 # For converting geographic to projected coordinate system
 def longlat2utm(long, lat):
     coord = utm.from_latlon(lat, long)
@@ -39,7 +43,7 @@ def get_point2line(easting1, northing1, easting2, northing2, step=0.5):
                          math.pow(northing2-northing1, 2))
 
     if distance > 10000:
-        return None, None
+        raise TilerError('Length should be less than 10KMs')
 
     for i in range(int(distance/step)):
         easting3.append(easting1 + step * (i+1) * (easting2-easting1)/distance)
@@ -50,7 +54,7 @@ def get_point2line(easting1, northing1, easting2, northing2, step=0.5):
     northing3.append(northing2)
 
     if len(easting3) != len(northing3):
-        return None, None
+        raise TilerError('Length of x and y coordinates should be equal')
 
     long = []
     lat = []
