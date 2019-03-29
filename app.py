@@ -190,6 +190,8 @@ def value():
 def profile():
     """Handle Elevation profile requests."""
     url = request.args.get('url', default='', type=str)
+    step = request.args.get('step', default=0.30, type=float)
+
     url = requote_uri(url)
 
     # Gives an list of string
@@ -198,7 +200,7 @@ def profile():
 
     x = np.array(x.split(','), dtype=float)
     y = np.array(y.split(','), dtype=float)
-    
+
     print('data:', x)
     print('length:', len(x))
 
@@ -215,7 +217,7 @@ def profile():
     for i in range(len(x)-1):
         print('Generating line from points')
         temp_x, temp_y = get_profile.get_point2line(
-            x[i], y[i], x[i+1], y[i+1], step=0.14)
+            x[i], y[i], x[i+1], y[i+1], step=step)
 
         if temp_x is None or temp_y is None:
             return ('Error: Distance between points should be less than 10KM')
