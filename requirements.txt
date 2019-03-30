@@ -7,3 +7,4 @@ flask_cors
 gunicorn
 pyproj
 pillow
+sanic
