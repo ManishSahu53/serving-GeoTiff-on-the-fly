@@ -37,7 +37,7 @@ async def hello(request):
     return Response.text("Welcome to Indshine COG API")
 
 
-@app.route("/bounds")
+@app.route("/api/v1/bounds")
 async def bounds(request):
     url = get_query(request, param='url',
                     default='www.indshine.com', datatype=str)
@@ -48,7 +48,7 @@ async def bounds(request):
     return Response.json(info)
 
 
-@app.route("/metadata")
+@app.route("/api/v1/metadata")
 async def metadata(request):
     url = get_query(request, param='url',
                     default='www.indshine.com', datatype=str)
@@ -59,8 +59,8 @@ async def metadata(request):
     return Response.json(info)
 
 
-@app.route('/tiles/<tile_z:int>/<tile_x:int>/<tile_y:int>', methods=['GET'])
-@app.route('/tiles/<tile_z:int>/<tile_x:int>/<tile_y:int>.<tileformat>', methods=['GET'])
+@app.route('/api/v1/tiles/<tile_z:int>/<tile_x:int>/<tile_y:int>', methods=['GET'])
+@app.route('/api/v1/tiles/<tile_z:int>/<tile_x:int>/<tile_y:int>.<tileformat>', methods=['GET'])
 async def tile(request, tile_z, tile_x, tile_y, tileformat='png'):
     print('hit tiles')
     # Rendering only if zoom level is greater than 9
@@ -149,7 +149,7 @@ async def tile(request, tile_z, tile_x, tile_y, tileformat='png'):
     return Response.raw(img, content_type='image/%s' % (tileformat))
 
 
-@app.route('/value', methods=['GET'])
+@app.route('/api/v1/value', methods=['GET'])
 async def value(request):
     """Handle bounds requests."""
     url = get_query(request, param='url',
