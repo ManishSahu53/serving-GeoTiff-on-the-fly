@@ -9,3 +9,4 @@ pyproj
 pillow
 sanic
 asgiref
+gevent
