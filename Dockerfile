@@ -56,7 +56,8 @@ RUN pip3 install flask && \
     pip3 install gevent &&\
     pip3 install pyproj &&\
     pip3 install pillow &&\
-    pip3 install utm
+    pip3 install utm &&\
+    pip3 install shapely
 
 EXPOSE 8000
 

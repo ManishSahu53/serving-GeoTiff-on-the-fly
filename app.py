@@ -22,6 +22,7 @@ from src import elevation as ele_func
 from src import value as get_value
 from src import response
 from src import profile as get_profile
+from src import volume as get_volume
 
 import time
 import gzip
@@ -177,6 +178,8 @@ def value():
     """Handle Value requests."""
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
+    if not url:
+        raise TilerError("Missing 'url' parameter")
 
     x = request.args.get('x', type=float)
     y = request.args.get('y', type=float)
@@ -194,6 +197,9 @@ def profile():
 
     url = requote_uri(url)
 
+    if not url:
+        raise TilerError("Missing 'url' parameter")
+
     # Gives an list of string
     x = request.args.get('x')
     y = request.args.get('y')
@@ -209,10 +215,11 @@ def profile():
 
     # Checking length of x and y
     if len(x) != len(y):
-        return Response('Error: Length of X and Y parameters are not equal')
+        raise TilerError('Error: Length of X and Y parameters are not equal')
 
     elif len(x) < 2:
-        return Response('Error: Length of parameters should be greater than 1')
+        raise TilerError(
+            'Error: Length of parameters should be greater than 1')
 
     for i in range(len(x)-1):
         print('Generating line from points')
@@ -220,7 +227,8 @@ def profile():
             x[i], y[i], x[i+1], y[i+1], step=step)
 
         if temp_x is None or temp_y is None:
-            return ('Error: Distance between points should be less than 10KM')
+            raise TilerError(
+                'Error: Distance between points should be less than 10KM')
 
         for j in range(len(temp_x)):
             coord_x.append(temp_x[j])
@@ -231,6 +239,37 @@ def profile():
     data = []
     info = get_value.get_value(
         address=url, coord_x=coord_x, coord_y=coord_y)
+    return (jsonify(info))
+
+
+# Gives volume value from raster
+@app.route('/api/v1/volume', methods=['GET'])
+def volume():
+    """Handle Value requests."""
+    url = request.args.get('url', default='', type=str)
+    method = request.args.get('method', default='bfit', type=str)
+    step = request.args.get('step', default=2, type=float)
+
+    url = requote_uri(url)
+    if not url:
+        raise TilerError("Missing 'url' parameter")
+
+    # Gives an list of string
+    x = request.args.get('x')
+    y = request.args.get('y')
+
+    # Spliting string into each element and redefining as float
+    x = np.array(x.split(','), dtype=float)
+    y = np.array(y.split(','), dtype=float)
+
+    if len(x) != len(y):
+        TilerError("length of x and y coordinates are not equal")
+    elif len(x) < 3:
+        TilerError("number of points should be greater than or equal to 3")
+    start_time = time.time()
+    info = get_volume.get_volume(address=url, coord_x=x, coord_y=y, step=step)
+    end_time = time.time()
+    print('Time Taken: %d' % (end_time-start_time))
     return (jsonify(info))
 
 
