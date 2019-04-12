@@ -17,23 +17,22 @@
     * **format**
         * png or jpg
 
-* /elevation
-    * **tile_z**
-        * Integer
-    * **tile_y**
-        * Integer
-    * **tile_x**
-        * Integer
-    * **format**
-        * png or jpg
-    * **params**
-        * Only one color scheme is available **Mapzen**
-
 * /value
     * **options**
         * url
         * x = longitude
         * y = latitude
+       
+ * /profile
+    * **options**
+        * url
+        * x = array of longitude
+        * y = array of latitude
+ * /volume
+    * **options**
+        * url
+        * x = array of longitude
+        * y = array of latitude
  
 
 ## How to run 
