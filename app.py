@@ -54,7 +54,7 @@ Compress(app)
 # Welcome page
 @app.route('/')
 def hello():
-    return "Welcome to, Indshine COG API!"
+    return "Welcome to, COG API!"
 
 
 # Generates bounds of Raster data
