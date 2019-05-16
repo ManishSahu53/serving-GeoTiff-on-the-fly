@@ -11,7 +11,7 @@
     * **options**
         * url
         
-**Example**: https://px7dducuh9.execute-api.us-east-1.amazonaws.com/dev/api/v1/bounds?url=https://s3.amazonaws.com/indshine-felix/10561/10562/DSM.tif
+**Example**: https://px7dducuh9.execute-api.us-east-1.amazonaws.com/dev/api/v1/metadata?url=https://s3.amazonaws.com/indshine-felix/10561/10562/DSM.tif
 
 * api/v1/tiles
     * **tile_z**
