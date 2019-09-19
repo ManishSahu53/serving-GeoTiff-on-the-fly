@@ -1,0 +1,28 @@
+version: "3"
+services:
+  web:
+    # replace username/repo:tag with your name and image details
+    image: cogapi:latest
+    deploy:
+      replicas: 5
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 1000M
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "4000:4000"
+    networks:
+      - webnet
+networks:
+  webnet:
+
+
+
+# How to run docker swarm
+# docker swarm init
+# docker stack deploy -c docker-compose.yml cogapi
+# Close docker swarm
+# docker stack rm cogapi
+# docker swarm leave --force

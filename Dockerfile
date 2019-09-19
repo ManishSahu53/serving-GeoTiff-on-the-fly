@@ -46,22 +46,10 @@ RUN python3 -m pip install pip --upgrade
 RUN python3 -m pip install wheel
 
 # Install dependencies for tiling
-RUN pip3 install flask && \
-    pip3 install numpy && \
-    pip3 install requests && \
-    pip3 install rio_tiler==1.1.3 && \
-    pip3 install flask_compress &&\
-    pip3 install flask_cors &&\
-    pip3 install gunicorn &&\
-    pip3 install gevent &&\
-    pip3 install pyproj &&\
-    pip3 install pillow &&\
-    pip3 install utm &&\
-    pip3 install shapely
+RUN pip install -r requirements.txt
 
-EXPOSE 8000
+EXPOSE 4000
 
-# ENTRYPOINT ["python3"]
-# CMD ["app.py" ]    
-# ENTRYPOINT ["gunicorn", "-k", "gevent", "-b", "0.0.0.0", "app:app"]
-CMD ["gunicorn", "-k", "gevent", "-w", "100", "-b", "0.0.0.0:3000", "app:app"]
+# CMD ["python3", "app.py" ]    
+# CMD ["gunicorn", "-k", "gevent", "-w", "8", "-b", "0.0.0.0:4000", "wsgi:app"]
+CMD ["gunicorn", "-c", "gconfig.py", "wsgi:app"]

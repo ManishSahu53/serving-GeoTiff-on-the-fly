@@ -32,6 +32,19 @@ def jet_colormap(arr, arr_min=None, arr_max=None, mask=None, colormap='majama', 
 
     elif colormap == 'magma':
         colors = np.uint8(cmap.magma(norm_arr))
+
+    elif colormap == 'ndvi':
+        colors = np.uint8(cmap.ndvi(norm_arr))
+
+    elif colormap == 'green':
+        colors = np.uint8(cmap.green(norm_arr))
+
+    elif colormap == 'blue':
+        colors = np.uint8(cmap.blue(norm_arr))
+
+    elif colormap == 'firewater':
+        colors = np.uint8(cmap.firewater(norm_arr))
+
     else:
         # Default
         colors = np.uint8(cmap.magma(norm_arr))

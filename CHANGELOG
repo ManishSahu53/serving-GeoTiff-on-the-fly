@@ -1,4 +1,10 @@
-v0.1.0 - Added Tiles support
-v0.2.0 - Added Compression to output
-v0.3.0 - Added value API
-v0.4.0 - Added elevation profile API
+0.1.0 - Added Tiles support
+0.2.0 - Added Compression to output
+0.3.0 - Added value API
+0.4.0 - Added elevation profile API
+0.5.0 - Added Stats API
+0.6.0 - Added Satellite Objects for better re-usability
+0.7.0 - Added value/index
+0.8.0 - Added Landsat8
+0.9.0 - Added Timeline indexes, Merged value and value/index
+0.10.0 - Updated Stats API

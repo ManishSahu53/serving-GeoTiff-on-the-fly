@@ -1,6 +1,7 @@
 import rasterio
 import pyproj
 import numpy as np
+import os
 from rio_tiler.errors import InvalidFormat
 
 
@@ -14,7 +15,7 @@ def get_value(address, coord_x, coord_y):
 
     with rasterio.open(address) as src:
         # Use pyproj to convert point coordinates
-        utm = pyproj.Proj(src.crs)  # Pass CRS of image from rasterio
+        utm = pyproj.Proj('%s' % (src.crs))  # Pass CRS of image from rasterio
         lonlat = pyproj.Proj(init='epsg:4326')
 
         # If different length of arrays
@@ -55,3 +56,63 @@ def get_value(address, coord_x, coord_y):
             value_json['%s' % (i)] = band_json
 
     return value_json
+
+
+def get_value_index(url, coord_x, coord_y, satellite, index='ndvi'):
+
+    if index == 'ndvi':
+        red = get_value(os.path.join(url, 'B04.tif'), coord_x, coord_y)
+        nir = get_value(os.path.join(url, 'B08.tif'), coord_x, coord_y)
+
+        arr = {'index': index}
+        for i in range(len(coord_x)):
+            _red = float(red[str(i)]['b0'])
+            _nir = float(nir[str(i)]['b0'])
+            arr[str(i)] = (_nir - _red)/(_nir + _red)
+
+    elif index == 'ndwi':
+        swir = get_value(os.path.join(url, 'B11.tif'), coord_x, coord_y)
+        nir = get_value(os.path.join(url, 'B08.tif'), coord_x, coord_y)
+
+        arr = {'index': index}
+        for i in range(len(coord_x)):
+            _swir = float(swir[str(i)]['b0'])
+            _nir = float(nir[str(i)]['b0'])
+            arr[str(i)] = (_nir - _swir)/(_nir + _swir)
+
+    elif index == 'nddi':
+        red = get_value(os.path.join(url, 'B04.tif'), coord_x, coord_y)
+        swir = get_value(os.path.join(url, 'B11.tif'), coord_x, coord_y)
+        nir = get_value(os.path.join(url, 'B08.tif'), coord_x, coord_y)
+
+        arr = {'index': index}
+        for i in range(len(coord_x)):
+            _red = float(red[str(i)]['b0'])
+            _nir = float(nir[str(i)]['b0'])
+            _swir = float(swir[str(i)]['b0'])
+            _ndvi = (_nir - _red)/(_nir + _red)
+            _ndwi = (_nir - _swir)/(_nir + _swir)
+
+            arr[str(i)] = (_ndvi - _ndwi)/(_ndvi + _ndwi)
+    
+    elif index[0] == 'b':
+        # For B01.tif
+        if len(index[1:]) == 1:
+            path = os.path.join(url, 'B0' + index[1] + '.tif')
+        
+        # For B11.tif
+        else:
+            path = os.path.join(url, 'B' + index[1:] + '.tif')
+
+        band = get_value(path, coord_x, coord_y)
+
+        arr = {'index': index}
+        for i in range(len(coord_x)):
+            _band = float(band[str(i)]['b0'])
+            arr[str(i)] = _band
+    else:
+        arr = {
+            'status': '404',
+            'body': 'Index requested not available'
+        }
+    return arr

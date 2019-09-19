@@ -85,7 +85,6 @@ def array_to_img(arr, mask=None, color_map=None, tileformat='png', tilesize=256,
         sio = BytesIO()
         img.save(sio, 'JPEG', **params)
         sio.seek(0)
-
     return sio.getvalue()
 
 

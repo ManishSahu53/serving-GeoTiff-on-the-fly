@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, Response, send_file
 import base64
 from requests.utils import requote_uri
+import requests
+
 """app.main: handle request for lambda-tiler"""
 
 import re
@@ -22,10 +24,24 @@ from src import elevation as ele_func
 from src import value as get_value
 from src import response
 from src import profile as get_profile
-from src import volume as get_volume
+from src import stats as get_stats
+from src import index as get_index
+from src import satellite as satelliteobj
+from src import exception as excep
+from src import extract
+from src import thumbnail as get_thumbnail
 
+import support
 import time
 import gzip
+import datetime
+import gconfig
+
+
+import threading
+import multiprocessing as mp
+from multiprocessing import Process, Manager
+
 # from lambda_proxy.proxy import API
 
 
@@ -63,9 +79,31 @@ def bounds():
     """Handle bounds requests."""
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
+    satellite = request.args.get('satellite', default='l8', type=str)
 
     # address = query_args['url']
-    info = main.bounds(url)
+    # Checking satellite requested
+    if satellite.lower() == 's2':
+        satellite_data = satelliteobj.sentinel2(base_json=url)
+
+    elif satellite.lower() == 'l8':
+        satellite_data = satelliteobj.landsat8(base_json=url)
+
+    else:
+        satellite_data = {
+            'status': '404',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(satellite_data)
+
+    url = satellite_data.path_band['b1']
+    print(url)
+
+    try:
+        info = main.bounds(url)
+    except Exception as e:
+        return jsonify(excep.general(e))
+
     return (jsonify(info))
 
 
@@ -77,76 +115,208 @@ def metadata():
     url = requote_uri(url)
 
     # address = query_args['url']
-    info = main.metadata(url)
+    try:
+        info = main.metadata(url)
+    except Exception as e:
+        return excep.general(e)
+
     return (jsonify(info))
+
+
+# Generate PNG/JPEG tiles of the given tile from raster
+@app.route('/api/v1/index/<int:tile_z>/<int:tile_x>/<int:tile_y>', methods=['GET'])
+@app.route('/api/v1/index/<int:tile_z>/<int:tile_x>/<int:tile_y>.<tileformat>', methods=['GET'])
+def index(tile_z, tile_x, tile_y, tileformat='png'):
+    if int(tile_z) < 5:
+        data = {
+            'status': '404',
+            'body': 'Zoom level should be greater than 5'
+        }
+        return jsonify(data)
+
+    url = request.args.get('url', default='', type=str)
+    url = requote_uri(url)
+
+    colormap = request.args.get('cmap', default='blue', type=str)
+    min_value = request.args.get('min', default=0, type=float)
+    max_value = request.args.get('max', default=1, type=float)
+    nodata = request.args.get('nodata', default=0, type=float)
+    tilesize = request.args.get('tile', 256)
+    indexes = request.args.get('indexes')
+    scale = request.args.get('scale', default=1, type=int)
+    index = request.args.get('index', default='ndvi', type=str)
+    satellite = request.args.get('satellite', default='l8', type=str)
+
+    # Converting to standard formats
+    index = index.lower()
+    scale = int(scale)
+    tilesize = int(tilesize) if isinstance(tilesize, str) else tilesize
+
+    # If critical inputs are not defined then throw out error
+    if not url:
+        data = {
+            'status': '404',
+            'body': "Missing 'url' parameter"
+        }
+        return jsonify(data)
+
+    if url[-4:].lower() != 'json':
+        msg = 'url object must be STAC JSON object'
+        return excep.general(msg)
+
+    if indexes:
+        indexes = tuple(int(s) for s in re.findall(r'\d+', indexes))
+
+    if tileformat == 'jpg':
+        tileformat = 'jpeg'
+
+    if not satellite.lower() in support.SATELLITE_SUPPORTED:
+        data = {
+            'status': '404',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(data)
+
+    # If defined the making sure it is in suitable data type
+    if nodata is not None:
+        nodata = int(nodata)
+
+    # Starting reading timer
+    st_time = time.time()
+
+    # Checking satellite requested
+    if satellite.lower() == 's2':
+        satellite_data = satelliteobj.sentinel2(base_json=url)
+
+    elif satellite.lower() == 'l8':
+        satellite_data = satelliteobj.landsat8(base_json=url)
+        tilesize = 512
+    else:
+        satellite_data = {
+            'status': '404',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(satellite_data)
+
+    # Getting particular index tile
+
+    try:
+        tile, mask = satellite_data.get_tile_index(index=index, tile_x=tile_x, tile_y=tile_y, tile_z=tile_z,
+                                                   indexes=indexes, tilesize=tilesize, scale=scale, nodata=nodata,
+                                                   resampling_method='nearest')
+    # Handling exceptions
+    except Exception as e:
+        return excep.general(e)
+
+    if tile is None:
+        data = {
+            'status': '404',
+            'body': 'This %s is not compatible. Only NDVI, NDWI, NDDI is compatile' % (index)
+        }
+        return jsonify(data)
+
+    # Endind timer here
+    end_time = time.time()
+    print('Reading time: ', end_time-st_time)
+
+    # Getting number of bands
+    numband = tile.shape[0]
+
+    # Coloring 1 dimension array to 3 dimension color array
+    if numband == 1:
+        try:
+            color_arr = ele_func.jet_colormap(
+                tile[0, :, :], arr_min=min_value, arr_max=max_value, colormap=colormap, mask=mask, nodata=nodata)
+
+            # Remapping [row, col, dim] to [dim, row, col] format
+            tile = ele_func.remap_array(arr=color_arr)
+
+        except Exception as e:
+            print(e)
+            return excep.general(e)
+
+    elif numband == 3 or numband == 4:
+        tile = np.uint8(tile)
+
+    else:
+        data = {
+            'status': '404',
+            'body': 'Number of bands allowed are 0, 3, 4. Given %d bands' % (numband)
+        }
+        return jsonify(data)
+
+    # Converting 3 band array to image format in base64 encoding
+    img = response.array_to_img(
+        arr=tile, tilesize=tilesize, scale=scale, tileformat=tileformat, mask=mask)
+
+    return Response(img, mimetype='image/%s' % (tileformat))
 
 
 # Generate PNG/JPEG tiles of the given tile from raster
 @app.route('/api/v1/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>', methods=['GET'])
 @app.route('/api/v1/tiles/<int:tile_z>/<int:tile_x>/<int:tile_y>.<tileformat>', methods=['GET'])
-def tile(tile_z, tile_x, tile_y, tileformat='png'):
-
-    # Rendering only if zoom level is greater than 9
-    if int(tile_z) < 9:
-        return Response(None)
-
-    """Handle Tile requests."""
-    if tileformat == 'jpg':
-        tileformat = 'jpeg'
-
-    # query_args = APP.current_request.query_params
-    # query_args = query_args if isinstance(query_args, dict) else {}
+def tiles(tile_z, tile_x, tile_y, tileformat='png'):
 
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
 
-    colormap = request.args.get('cmap', default='majama', type=str)
-    min_value = request.args.get('min', type=float)
-    max_value = request.args.get('max', type=float)
     nodata = request.args.get('nodata', default=-9999, type=float)
     tilesize = request.args.get('tile', 256)
     indexes = request.args.get('indexes')
-    numband = request.args.get('numband', type=int)
     scale = request.args.get('scale', default=1, type=int)
+    numband = request.args.get('numband', default=3, type=int)
+
+    min_value = request.args.get('min', default=0, type=int)
+    max_value = request.args.get('max', default=1, type=int)
+    colormap = request.args.get('cmap', default='green', type=str)
+    satellite = request.args.get('satellite', default='l8', type=str)
+
+    # Converting to standard formats
     scale = int(scale)
-
-    if not url:
-        raise TilerError("Missing 'url' parameter")
-    if indexes:
-        indexes = tuple(int(s) for s in re.findall(r'\d+', indexes))
-
     tilesize = int(tilesize) if isinstance(tilesize, str) else tilesize
-
     if nodata is not None:
         nodata = int(nodata)
-
     if numband is not None:
         numband = int(numband)
 
+    # If critical inputs are not defined then throw out error
+    if not url:
+        return excep.general('URL parameter Missing')
+    if indexes:
+        indexes = tuple(int(s) for s in re.findall(r'\d+', indexes))
+    if tileformat == 'jpg':
+        tileformat = 'jpeg'
+
     if numband == 3 or numband == 4:
+        # Defining formula for true color
+        true_color = url + 'TCI.tif'
+
+        # Starting timers
         st_time = time.time()
-        tile, mask = main.tile(url,
+
+        # Reading data from url
+        tile, mask = main.tile(true_color,
                                tile_x,
                                tile_y,
                                tile_z,
                                indexes=indexes,
                                tilesize=tilesize*scale,
-                               nodata=None,
-                               resampling_method="cubic_spline")
+                               nodata=nodata,
+                               resampling_method="nearest")
 
+        # Endind timer
         end_time = time.time()
         print('Reading time: ', end_time-st_time)
 
-        # Converting it to Unsigned integer 8 bit if not.
+        # Converting to uint8 array type
         tile = np.uint8(tile)
 
-        # Convering from array to image bytes type
-        # img = array_to_image(tile)
+        # Converting array to image type in base64 encoding
         img = response.array_to_img(
             arr=tile, tilesize=tilesize, scale=scale, tileformat=tileformat)
 
+    # Converting one band dataset to colorband
     elif numband == 1:
-        st_time = time.time()
         tile, mask = main.tile(url,
                                tile_x,
                                tile_y,
@@ -156,121 +326,381 @@ def tile(tile_z, tile_x, tile_y, tileformat='png'):
                                nodata=nodata,
                                resampling_method="cubic_spline")
 
-        end_time = time.time()
-        print('Reading time: ', end_time-st_time)
-
         # Coloring 1 dimension array to 3 dimension color array
         color_arr = ele_func.jet_colormap(
             tile[0, :, :], arr_min=min_value, arr_max=max_value, colormap=colormap, mask=mask, nodata=nodata)
 
         # Remapping [row, col, dim] to [dim, row, col] format
         color_arr = ele_func.remap_array(arr=color_arr)
-        # img = array_to_image(arr=color_arr)
         img = response.array_to_img(
-            arr=color_arr, tilesize=tilesize, scale=scale, tileformat=tileformat)
+            arr=color_arr, tilesize=tilesize, scale=scale, tileformat=tileformat, mask=mask)
 
     return Response(img, mimetype='image/%s' % (tileformat))
 
 
-# Gives data value from raster
+# Gives data stats from raster
+@app.route('/api/v1/stats', methods=['GET'])
+def stats():
+    """Handle Value requests."""
+    url = request.args.get('url', default='', type=str)
+    url = requote_uri(url)
+
+    # If critical inputs are not defined then throw out error
+    if not url:
+        raise TilerError("Missing 'url' parameter")
+
+    # If shapefile is not given then compute using coordinates
+    print('Calculating statistics using Coordinates')
+    # Gives an list of string
+    x = request.args.get('x')
+    y = request.args.get('y')
+
+    x = np.array(x.split(','), dtype=float)
+    y = np.array(y.split(','), dtype=float)
+
+    # Name of Satellite
+    satellite = request.args.get('satellite', default='l8', type=str)
+    satellite = satellite.lower()
+
+    index = request.args.get('index', default='ndvi', type=str)
+
+
+    # If critical inputs are not defined then throw out error
+    if len(x) != len(y):
+        raise TilerError(
+            'Number of Latitudes and Longitudes given are not same')
+
+    if not url:
+        data = {
+            'status': '404',
+            'body': "Missing 'url' parameter"
+        }
+        return jsonify(data)
+
+    if url[-4:].lower() != 'json':
+        msg = 'url object must be STAC JSON object'
+        return excep.general(msg)
+
+    if not satellite in support.SATELLITE_SUPPORTED:
+        data = {
+            'status': '404',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(data)
+
+     # Checking satellite requested
+    if satellite.lower() == 's2':
+        satellite_data = satelliteobj.sentinel2(base_json=url)
+
+    elif satellite.lower() == 'l8':
+        satellite_data = satelliteobj.landsat8(base_json=url)
+    else:
+        satellite_data = {
+            'status': '404',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(satellite_data)
+
+    st_time = time.time()
+
+    try:
+        stats, msg = satellite_data.get_stats_index(coord_x=x, coord_y=y, index=index)
+    except Exception as e:
+        msg = 'Cound not get statistcs: %s, from url: %s. %s' % (index, url, e)
+        return excep.general(msg)
+
+    end_time = time.time()
+    print('Total Time taken to get statistics : %s secs '%(end_time-st_time))
+
+    if stats is None:
+        return excep.general(msg)
+
+    return jsonify(stats)
+
+
+# Gives index data value from raster
 @app.route('/api/v1/value', methods=['GET'])
 def value():
     """Handle Value requests."""
+    # Base URL of the dataset
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
-    if not url:
-        raise TilerError("Missing 'url' parameter")
 
-    x = request.args.get('x', type=float)
-    y = request.args.get('y', type=float)
-    # address = query_args['url']
-    info = get_value.get_value(address=url, coord_x=x, coord_y=y)
-    return (jsonify(info))
+    index = request.args.get('index', default='ndvi', type=str)
+    index = index.lower()
 
-
-# Generates elevation/data profile from raster
-@app.route('/api/v1/profile', methods=['GET'])
-def profile():
-    """Handle Elevation profile requests."""
-    url = request.args.get('url', default='', type=str)
-    step = request.args.get('step', default=0.30, type=float)
-
-    url = requote_uri(url)
-
-    if not url:
-        raise TilerError("Missing 'url' parameter")
-
-    # Gives an list of string
+    # Number of coordinates
     x = request.args.get('x')
     y = request.args.get('y')
 
     x = np.array(x.split(','), dtype=float)
     y = np.array(y.split(','), dtype=float)
 
-    print('data:', x)
-    print('length:', len(x))
+    # Name of Satellite
+    satellite = request.args.get('satellite', default='l8', type=str)
+    satellite = satellite.lower()
 
-    coord_x = []
-    coord_y = []
-
-    # Checking length of x and y
-    if len(x) != len(y):
-        raise TilerError('Error: Length of X and Y parameters are not equal')
-
-    elif len(x) < 2:
-        raise TilerError(
-            'Error: Length of parameters should be greater than 1')
-
-    for i in range(len(x)-1):
-        print('Generating line from points')
-        temp_x, temp_y = get_profile.get_point2line(
-            x[i], y[i], x[i+1], y[i+1], step=step)
-
-        if temp_x is None or temp_y is None:
-            raise TilerError(
-                'Error: Distance between points should be less than 10KM')
-
-        for j in range(len(temp_x)):
-            coord_x.append(temp_x[j])
-            coord_y.append(temp_y[j])
-
-    print('Generated %d number of points' % (len(coord_x)))
-    # Initializing dataset
-    data = []
-    info = get_value.get_value(
-        address=url, coord_x=coord_x, coord_y=coord_y)
-    return (jsonify(info))
-
-
-# Gives volume value from raster
-@app.route('/api/v1/volume', methods=['GET'])
-def volume():
-    """Handle Value requests."""
-    url = request.args.get('url', default='', type=str)
-    method = request.args.get('method', default='bfit', type=str)
-    step = request.args.get('step', default=2, type=float)
-
-    url = requote_uri(url)
+    # If critical inputs are not defined then throw out error
     if not url:
-        raise TilerError("Missing 'url' parameter")
+        data = {
+            'status': '404',
+            'body': "Missing 'url' parameter"
+        }
+        return jsonify(data)
 
-    # Gives an list of string
-    x = request.args.get('x')
-    y = request.args.get('y')
+    if url[-4:].lower() != 'json':
+        msg = 'url object must be STAC JSON object'
+        return excep.general(msg)
 
-    # Spliting string into each element and redefining as float
-    x = np.array(x.split(','), dtype=float)
-    y = np.array(y.split(','), dtype=float)
+    if not satellite in support.SATELLITE_SUPPORTED:
+        data = {
+            'status': '404',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(data)
 
-    if len(x) != len(y):
-        TilerError("length of x and y coordinates are not equal")
-    elif len(x) < 3:
-        TilerError("number of points should be greater than or equal to 3")
-    start_time = time.time()
-    info = get_volume.get_volume(address=url, coord_x=x, coord_y=y, step=step)
+    # Checking satellite requested
+    if satellite.lower() == 's2':
+        satellite_data = satelliteobj.sentinel2(base_json=url)
+
+    elif satellite.lower() == 'l8':
+        satellite_data = satelliteobj.landsat8(base_json=url)
+    else:
+        satellite_data = {
+            'status': '404',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(satellite_data)
+
+    st_time = time.time()
+
+    # Reading satellite dataset
+    try:
+        info = satellite_data.get_value_index(
+            coord_x=x, coord_y=y, index=index)
+
+    except Exception as e:
+        msg = 'Cound not process index: %s, from url: %s. %s' % (index, url, e)
+        return excep.general(msg)
+
+    # If info data is None
+    if info is None:
+        msg = 'Cound not process index: %s, from url: %s. Make sure the index exist' % (
+            index, url)
+        return excep.general(msg)
+
     end_time = time.time()
-    print('Time Taken: %d' % (end_time-start_time))
+    print('Total Time taken : %s secs' % (end_time - st_time))
+
     return (jsonify(info))
+
+
+@app.route('/api/v1/timeline', methods=['GET'])
+def timeline():
+    """Handle Value requests."""
+    # Base URL of the dataset
+    table_name = request.args.get(
+        'table_name', default='satellite_dataset', type=str)
+    table_name = table_name.lower()
+
+    index = request.args.get('index', default='ndvi', type=str)
+    index = index.lower()
+
+    # Number of coordinates
+    x = request.args.get('x')  # Logitude
+    y = request.args.get('y')  # Latitude
+
+    x = np.array(x.split(','), dtype=float)
+    y = np.array(y.split(','), dtype=float)
+
+    # Name of Satellite
+    satellite = request.args.get('satellite', default='l8', type=str)
+    satellite = satellite.lower()
+
+    # Default dates should be one week from today's date
+    today = datetime.date.today()
+    week_ago = today - datetime.timedelta(days=7)
+
+    start_date = request.args.get(
+        'start_date', default=str(week_ago), type=str)
+    end_date = request.args.get('end_date', default=str(today), type=str)
+
+    # If critical inputs are not defined then throw out error
+    if not satellite in support.SATELLITE_SUPPORTED:
+        data = {
+            'status': '404',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(data)
+
+    # x is longitude in searchapi and y is latitude
+    payload = (('start_date', start_date), ('end_date', end_date),
+               ('satellite', satellite), ('table_name', table_name),
+               ('x', x), ('y', y))
+
+    r = requests.get(gconfig.SEARCH_API, params=payload)
+    response = r.json()
+    dates = list(response.keys())
+
+    manager = Manager()
+    data = manager.dict()
+
+    data['index'] = index
+
+    def compute(data, date):
+        # print(threading.currentThread().getName(), 'Starting')
+        arr = {}
+        stac_url = response[date]
+        print(stac_url)
+        # Checking satellite requested
+        if satellite.lower() == 's2':
+            satellite_data = satelliteobj.sentinel2(base_json=stac_url)
+
+        elif satellite.lower() == 'l8':
+            satellite_data = satelliteobj.landsat8(base_json=stac_url)
+            tilesize = 512
+        else:
+            satellite_data = {
+                'status': '404',
+                'body': 'Satellite %s is not available' % (satellite)
+            }
+            return jsonify(satellite_data)
+
+        # Reading satellite dataset
+        # In value api where pyproj transform is used, x and y are reversed
+        st_time = time.time()
+        try:
+            # print(threading.currentThread().getName(), 'Reading data')
+            info = satellite_data.get_value_index(
+                coord_x=x, coord_y=y, index=index)
+            # print(threading.currentThread().getName(), 'Finished Reading data')
+
+        except Exception as e:
+            msg = 'Cound not process index: %s, from url: %s. %s' % (
+                index, stac_url, e)
+            return excep.general(msg)
+
+        # If info data is None
+        if info is None:
+            msg = 'Cound not process index: %s, from url: %s. Make sure the index exist' % (
+                index, stac_url)
+            arr[date] = 'nan'
+
+        else:
+            data[date] = info['0']
+
+        end_time = time.time()
+
+        print('Index Time Taken: %s secs' % (end_time-st_time))
+        # print(threading.currentThread().getName(), 'Finished')
+
+        return data
+
+    # multiprocessing POST
+    processes = list()
+    for i in range(len(dates)):
+        process = Process(target=compute, args=(data, dates[i], ))
+        process.start()
+        processes.append(process)
+    
+    for process in processes:
+        process.join()
+
+    # threads = []
+    # for i in range(len(dates)):
+    #     t = threading.Thread(target=compute, args=(data, dates[i], ))
+    #     threads.append(t)
+    #     t.start()
+
+    # t.join()
+
+    data = dict(data)
+    return jsonify(data)
+
+
+@app.route('/api/v1/thumbnail', methods=['GET'])
+def thumbnail():
+    """Handle Value requests."""
+    # Base URL of the dataset
+    table_name = request.args.get(
+        'table_name', default='satellite_dataset', type=str)
+    table_name = table_name.lower()
+
+    index = request.args.get('index', default='ndvi', type=str)
+    index = index.lower()
+
+    farmid = request.args.get('farmid', default='', type=str)
+
+    # Number of coordinates
+    x = request.args.get('x')  # Logitude
+    y = request.args.get('y')  # Latitude
+
+    x = np.array(x.split(','), dtype=float)
+    y = np.array(y.split(','), dtype=float)
+
+    # Name of Satellite
+    # satellite = request.args.get('satellite', default='s2', type=str)
+    # satellite = satellite.lower()
+    satellite = 'l8' # Currently fixed
+
+    start_date = request.args.get(
+        'start_date', default='2019-01-01', type=str)
+    
+    end_date = request.args.get('end_date', default='2019-07-01', type=str)
+
+    # If critical inputs are not defined then throw out error
+    if not satellite in support.SATELLITE_SUPPORTED:
+        data = {
+            'status': '500',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(data)
+
+    if not farmid:
+        data = {
+            'status': '500',
+            'body': 'farmid not given'
+        }
+        return jsonify(data)
+    
+    if len(x) != len(y):
+        data = {
+            'status': '500',
+            'body': 'Length of X and Y is not same. Check Inputs' % (satellite)
+        }
+        return jsonify(data)
+
+    # x is longitude in searchapi and y is latitude
+    payload = (('start_date', start_date), ('end_date', end_date),
+               ('satellite', satellite), ('table_name', table_name),
+               ('x', x), ('y', y))
+
+    r = requests.get(gconfig.SEARCH_API, params=payload)
+    response = r.json()
+    dates = list(response.keys())
+
+    manager = Manager()
+    data = manager.dict()
+
+    # multiprocessing POST
+    processes = list()
+    for i in range(len(dates)):
+        date = dates[i]
+        stac_url = response[date]
+        process = Process(target=get_thumbnail.get_thumbnail, args=(data, date, stac_url, satellite, x, y, farmid, index, ))
+        process.start()
+        processes.append(process)
+    
+    for process in processes:
+        process.join()
+
+    data = dict(data)
+    return jsonify(data)
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return "<h1>404</h1><p>The resource could not be found.</p>", 404
 
 
 @app.route('/api/v1/favicon.ico', methods=['GET'])
@@ -284,7 +714,7 @@ def favicon():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, threaded=True)
+    app.run(host='0.0.0.0', port=4000)
 
 
 """
