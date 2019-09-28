@@ -7,8 +7,8 @@ timeout = 120
 graceful_timeout = 120
 
 
-SEARCH_API = 'localhost:5000/api/v1/search'
-CDNURL = 'https://d2l0edunqm5wgb.cloudfront.net'
+SEARCH_API = 'http://40.117.155.223:5000/api/v1/search'
+CDNURL = 'https://dvqjhul01jnkw.cloudfront.net'
 
-BUCKET = 'test-satellite-dataset'
-AWS_REGION = 'eu-central-1'
+BUCKET = 'satellite-dataset-prod'
+AWS_REGION = 'us-east-2'
