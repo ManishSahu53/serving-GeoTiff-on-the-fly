@@ -1,5 +1,5 @@
 # serverless.yml
-service: serverless-raster_tiling
+service: serverless-raster-tiling
 plugins:
   - serverless-python-requirements
   - serverless-wsgi
