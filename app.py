@@ -114,12 +114,30 @@ def metadata():
     """Handle metadata requests."""
     url = request.args.get('url', default='', type=str)
     url = requote_uri(url)
+    satellite = request.args.get('satellite', default='l8', type=str)
 
     # address = query_args['url']
+    # Checking satellite requested
+    if satellite.lower() == 's2':
+        satellite_data = satelliteobj.sentinel2(base_json=url)
+
+    elif satellite.lower() == 'l8':
+        satellite_data = satelliteobj.landsat8(base_json=url)
+
+    else:
+        satellite_data = {
+            'status': '404',
+            'body': 'Satellite %s is not available' % (satellite)
+        }
+        return jsonify(satellite_data)
+
+    url = satellite_data.path_band['b1']
+    print(url)
+
     try:
         info = main.metadata(url)
     except Exception as e:
-        return excep.general(e)
+        return jsonify(excep.general(e))
 
     return (jsonify(info))
 
@@ -551,6 +569,7 @@ def timeline():
     }
     data['data'] = {}
 
+    # Creating threads for lambda function
     processes = list()
     for i in range(len(dates)):
         url = response[dates[i]]
