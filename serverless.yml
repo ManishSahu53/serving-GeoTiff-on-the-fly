@@ -1,0 +1,27 @@
+# serverless.yml
+service: serverless-raster_tiling
+plugins:
+  - serverless-python-requirements
+  - serverless-wsgi
+
+custom:
+  wsgi:
+    app: app.app
+    packRequirements: false
+  pythonRequirements:
+    dockerizePip: true
+
+provider:
+  name: aws
+  runtime: python3.7
+  stage: dev
+  region: us-east-2
+  timeout: 300 # optional, in seconds, default is 6
+  memorySize: 3008 # optional, in MB, default is 1024
+
+functions:
+  app:
+    handler: wsgi_handler.handler
+    events:
+      - http: ANY /
+      - http: 'ANY {proxy+}'

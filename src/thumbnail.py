@@ -44,7 +44,7 @@ def get_thumbnail(data, date, stac_url, satellite, coord_x, coord_y, farmid, ind
             print('Uploading %s ...' %(date))
             bucket = gconfig.BUCKET
 
-            key = 'testing/%s/%s' %(farmid, date.replace('-','')) + '.jpg'
+            key = 'farmimage/%s/%s' %(farmid, date.replace('-','')) + '.jpg'
 
             try:
                 img_obj = extract.array2img(arr)

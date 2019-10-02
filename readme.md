@@ -52,7 +52,7 @@ https://localhost:4000/api/v1/stats?url=https://dwa0i5u31qk1r.cloudfront.net/sen
 
  
 ## AWS Lambda
-This API is hosted on AWS Lambda at url - https://px7dducuh9.execute-api.us-east-1.amazonaws.com/dev/
+This API is hosted on AWS Lambda at url - https://zsgz8nr1fh.execute-api.us-east-2.amazonaws.com/dev/
 
 ## How to run 
 ```

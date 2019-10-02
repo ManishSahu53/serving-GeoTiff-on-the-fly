@@ -30,6 +30,7 @@ from src import satellite as satelliteobj
 from src import exception as excep
 from src import extract
 from src import thumbnail as get_thumbnail
+from src import timeline as get_timeline
 
 import support
 import time
@@ -543,78 +544,34 @@ def timeline():
     dates = list(response.keys())
 
     manager = Manager()
-    data = manager.dict()
+    temp = manager.dict()
 
-    data['index'] = index
+    data = {
+        'index': index
+    }
+    data['data'] = {}
 
-    def compute(data, date):
-        # print(threading.currentThread().getName(), 'Starting')
-        arr = {}
-        stac_url = response[date]
-        print(stac_url)
-        # Checking satellite requested
-        if satellite.lower() == 's2':
-            satellite_data = satelliteobj.sentinel2(base_json=stac_url)
-
-        elif satellite.lower() == 'l8':
-            satellite_data = satelliteobj.landsat8(base_json=stac_url)
-            tilesize = 512
-        else:
-            satellite_data = {
-                'status': '404',
-                'body': 'Satellite %s is not available' % (satellite)
-            }
-            return jsonify(satellite_data)
-
-        # Reading satellite dataset
-        # In value api where pyproj transform is used, x and y are reversed
-        st_time = time.time()
-        try:
-            # print(threading.currentThread().getName(), 'Reading data')
-            info = satellite_data.get_value_index(
-                coord_x=x, coord_y=y, index=index)
-            # print(threading.currentThread().getName(), 'Finished Reading data')
-
-        except Exception as e:
-            msg = 'Cound not process index: %s, from url: %s. %s' % (
-                index, stac_url, e)
-            return excep.general(msg)
-
-        # If info data is None
-        if info is None:
-            msg = 'Cound not process index: %s, from url: %s. Make sure the index exist' % (
-                index, stac_url)
-            arr[date] = 'nan'
-
-        else:
-            data[date] = info['0']
-
-        end_time = time.time()
-
-        print('Index Time Taken: %s secs' % (end_time-st_time))
-        # print(threading.currentThread().getName(), 'Finished')
-
-        return data
-
-    # multiprocessing POST
     processes = list()
     for i in range(len(dates)):
-        process = Process(target=compute, args=(data, dates[i], ))
+        url = response[dates[i]]
+        process = Process(target=get_timeline.get_lambda, args=(dates[i], url, satellite, index, x, y, temp, ))
         process.start()
         processes.append(process)
     
     for process in processes:
         process.join()
-
+    
     # threads = []
     # for i in range(len(dates)):
-    #     t = threading.Thread(target=compute, args=(data, dates[i], ))
+    #     url = response[dates[i]]
+    #     t = threading.Thread(target=get_timeline.get_lambda, args=(dates[i], url, satellite, index, x, y, temp))
     #     threads.append(t)
     #     t.start()
 
-    # t.join()
+    # for tt in threads:
+    #     tt.join()
 
-    data = dict(data)
+    data['data'] = dict(temp)
     return jsonify(data)
 
 

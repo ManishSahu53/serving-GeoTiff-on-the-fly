@@ -1,3 +1,11 @@
+# Files
 .env
 *.vscode
 *.tif
+*.pyc
+
+# Folders
+__pycache__/
+.vscode/
+.serverless/
+node_modules/
